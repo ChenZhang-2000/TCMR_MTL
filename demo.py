@@ -15,10 +15,10 @@
 # Contact: ps-license@tuebingen.mpg.de
 
 import os
+os.environ['PYOPENGL_PLATFORM'] = 'osmesa'
 import os.path as osp
 from lib.core.config import BASE_DATA_DIR
 from lib.models.smpl import SMPL, SMPL_MODEL_DIR
-os.environ['PYOPENGL_PLATFORM'] = 'egl'
 
 import cv2
 import time

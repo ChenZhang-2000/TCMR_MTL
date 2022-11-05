@@ -6,6 +6,7 @@ import torch.nn.functional as F
 
 from lib.core.config import BASE_DATA_DIR
 from lib.models.spin import Regressor
+from .mtl.param_tree import TreeNode
 
 
 class TemporalAttention(nn.Module):
@@ -129,12 +130,14 @@ class TCMR(nn.Module):
 
         # regressor can predict cam, pose and shape params in an iterative way
         self.regressor = Regressor()
+        self.tree = TreeNode([self.regressor.tree], [self.encoder])
 
         if pretrained and os.path.isfile(pretrained):
             pretrained_dict = torch.load(pretrained)['model']
 
             self.regressor.load_state_dict(pretrained_dict, strict=False)
             print(f'=> loaded pretrained model from \'{pretrained}\'')
+
 
     def forward(self, input, is_train=False, J_regressor=None):
         # input size NTF

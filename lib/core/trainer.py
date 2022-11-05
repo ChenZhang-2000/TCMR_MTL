@@ -57,6 +57,9 @@ class Trainer():
             resume=None,
             performance_type='min',
             num_iters_per_epoch=1000,
+            update_grad=True,
+            norm_type="loss+",
+            mtl=True,
     ):
 
         # exclude motion discriminator
@@ -92,6 +95,10 @@ class Trainer():
         self.debug = debug
         self.debug_freq = debug_freq
         self.logdir = logdir
+
+        self.update_grad = update_grad
+        self.norm_type = norm_type
+        self.mtl = mtl
 
         self.dis_motion_update_steps = dis_motion_update_steps
 
@@ -210,9 +217,38 @@ class Trainer():
             start = time.time()
 
             # <======= Backprop generator and discriminator
-            self.gen_optimizer.zero_grad()
-            gen_loss.backward()
-            self.gen_optimizer.step()
+            if self.mtl and (self.epoch >= 10):
+                self.generator.tree.zero_grad()
+                for name, loss in loss_dict.items():
+                    self.gen_optimizer.zero_grad()
+                    loss.backward(retain_graph=True)
+
+                    with torch.no_grad():
+                        self.generator.tree.get_gradient(name)
+
+                    if self.update_grad:
+                        del loss
+
+                self.gen_optimizer.zero_grad()
+
+                with torch.no_grad():
+                    self.generator.tree.run_solver(loss_dict, self.norm_type, self.update_grad)
+
+                if not self.update_grad:
+                    m = len(loss_dict)
+                    self.gen_optimizer.zero_grad()
+                    loss = torch.zeros_like(gen_loss)
+                    for name, alpha in self.generator.tree.alphas:
+                        loss += loss_dict[name] * alpha  # * m
+                    loss.backward()
+
+                self.gen_optimizer.step()
+
+            else:
+                # print("XXXXXXXXXXXXXXXXXXXXXXXXXX\n")
+                self.gen_optimizer.zero_grad()
+                gen_loss.backward()
+                self.gen_optimizer.step()
 
             # exclude motion discriminator
             # if self.train_global_step % self.dis_motion_update_steps == 0:
@@ -442,7 +478,7 @@ class Trainer():
             'accel_err': accel_err
         }
 
-        log_str = f'Epoch {self.epoch}, '
+        log_str = f'Epoch {self.epoch+1}, '
         log_str += ' '.join([f'{k.upper()}: {v:.4f},'for k,v in eval_dict.items()])
         logger.info(log_str)
 

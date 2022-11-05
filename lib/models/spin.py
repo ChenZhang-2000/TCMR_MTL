@@ -11,6 +11,7 @@ import torchvision.models.resnet as resnet
 from lib.core.config import BASE_DATA_DIR
 from lib.utils.geometry import rotation_matrix_to_angle_axis, rot6d_to_rotmat
 from lib.models.smpl import SMPL, SMPL_MODEL_DIR, H36M_TO_J14, SMPL_MEAN_PARAMS
+from .mtl.param_tree import TreeNode
 
 
 class Bottleneck(nn.Module):
@@ -236,6 +237,8 @@ class Regressor(nn.Module):
         self.register_buffer('init_pose', init_pose)
         self.register_buffer('init_shape', init_shape)
         self.register_buffer('init_cam', init_cam)
+
+        self.tree = TreeNode([], [self.fc1, self.drop1, self.fc2, self.drop2, self.decpose, self.decshape, self.deccam])
 
     def forward(self, x, init_pose=None, init_shape=None, init_cam=None, n_iter=3, is_train=False, J_regressor=None):
         batch_size = x.shape[0]

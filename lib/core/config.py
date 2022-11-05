@@ -16,19 +16,23 @@
 
 import os
 import argparse
+import yaml
 from yacs.config import CfgNode as CN
 
 # CONSTANTS
 # You may modify them at will
-TCMR_DB_DIR = '/data5/zc/TCMR/preprocessed_data'
-AMASS_DIR = 'data/amass'
-INSTA_DIR = 'data/insta_variety'
-MPII3D_DIR = 'data/mpi_inf_3dhp'
-THREEDPW_DIR = 'data/3dpw'
-H36M_DIR = 'data/h36m'
-PENNACTION_DIR = 'data/penn_action'
-POSETRACK_DIR = 'data/posetrack'
-BASE_DATA_DIR = 'data/base_data'
+with open(r"configs/global.yaml") as stream:
+    global_config = yaml.safe_load(stream)
+
+TCMR_DB_DIR = global_config["TCMR_DB_DIR"]
+AMASS_DIR = global_config["AMASS_DIR"]
+INSTA_DIR = global_config["INSTA_DIR"]
+MPII3D_DIR = global_config["MPII3D_DIR"]
+THREEDPW_DIR = global_config["THREEDPW_DIR"]
+H36M_DIR = global_config["H36M_DIR"]
+PENNACTION_DIR = global_config["PENNACTION_DIR"]
+POSETRACK_DIR = global_config["POSETRACK_DIR"]
+BASE_DATA_DIR = global_config["BASE_DATA_DIR"]
 
 # Configuration variables
 cfg = CN()
@@ -67,6 +71,7 @@ cfg.TRAIN.LR_PATIENCE = 5
 # <====== generator optimizer
 cfg.TRAIN.GEN_OPTIM = 'Adam'
 cfg.TRAIN.GEN_LR = 1e-4
+cfg.TRAIN.LR_DECAY = 0.1
 cfg.TRAIN.GEN_WD = 1e-4
 cfg.TRAIN.GEN_MOMENTUM = 0.9
 
@@ -88,6 +93,10 @@ cfg.TRAIN.MOT_DISCR.ATT.DROPOUT = 0.1
 cfg.DATASET = CN()
 cfg.DATASET.SEQLEN = 20
 cfg.DATASET.OVERLAP = 0.5
+
+cfg.UPDATE_GRAD = False
+cfg.NORM_TYPE = "loss+"
+cfg.MTL = True
 
 cfg.LOSS = CN()
 cfg.LOSS.KP_2D_W = 60.

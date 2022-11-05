@@ -111,8 +111,7 @@ class TCMRLoss(nn.Module):
 
         # Generator Loss
         loss_kp_2d = self.keypoint_loss(pred_j2d, real_2d, openpose_weight=1., gt_weight=1.) * self.e_loss_weight
-        loss_kp_3d = self.keypoint_3d_loss(pred_j3d, real_3d)
-        loss_kp_3d = loss_kp_3d * self.e_3d_loss_weight
+        loss_kp_3d = self.keypoint_3d_loss(pred_j3d, real_3d) * self.e_3d_loss_weight
         # loss_accel_3d = self.accel_3d_loss(pred_accel, real_accel) * 100 #self.e_3d_loss_weight
         # loss_attention = self.attetion_loss(pred_scores)
 

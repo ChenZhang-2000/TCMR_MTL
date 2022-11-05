@@ -95,7 +95,7 @@ def main(cfg):
     motion_lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         dis_motion_optimizer,
         mode='min',
-        factor=0.1,
+        factor=cfg.TRAIN.LR_DECAY,
         patience=cfg.TRAIN.LR_PATIENCE,
         verbose=True,
     )
@@ -103,7 +103,7 @@ def main(cfg):
     lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         gen_optimizer,
         mode='min',
-        factor=0.1,
+        factor=cfg.TRAIN.LR_DECAY,
         patience=cfg.TRAIN.LR_PATIENCE,
         verbose=True,
     )
@@ -128,6 +128,9 @@ def main(cfg):
         resume=cfg.TRAIN.RESUME,
         num_iters_per_epoch=cfg.TRAIN.NUM_ITERS_PER_EPOCH,
         debug_freq=cfg.DEBUG_FREQ,
+        update_grad=cfg.UPDATE_GRAD,
+        norm_type=cfg.NORM_TYPE,
+        mtl=cfg.MTL,
     ).fit()
 
 

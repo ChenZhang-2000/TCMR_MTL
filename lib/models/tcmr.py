@@ -138,7 +138,6 @@ class TCMR(nn.Module):
             self.regressor.load_state_dict(pretrained_dict, strict=False)
             print(f'=> loaded pretrained model from \'{pretrained}\'')
 
-
     def forward(self, input, is_train=False, J_regressor=None):
         # input size NTF
         batch_size, seqlen = input.shape[:2]

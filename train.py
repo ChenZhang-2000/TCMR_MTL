@@ -132,6 +132,7 @@ def main(cfg):
         norm_type=cfg.NORM_TYPE,
         mtl=cfg.MTL,
         mtl_start=cfg.MTL_START,
+        mtl_method=cfg.MTL_METHOD,
     ).fit()
 
 

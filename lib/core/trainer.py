@@ -15,15 +15,18 @@
 # Contact: ps-license@tuebingen.mpg.de
 
 import time
-import torch
 import shutil
-import logging
-import numpy as np
 import os.path as osp
+import logging
+
+import numpy as np
+import torch
+from torch.autograd import Variable
 from progress.bar import Bar
 
 from lib.core.config import BASE_DATA_DIR
 from lib.utils.utils import move_dict_to_device, AverageMeter, check_data_pararell
+from lib.models.mtl.min_norm_solvers import MinNormSolver, gradient_normalizers
 
 from lib.utils.eval_utils import (
     compute_accel,
@@ -61,6 +64,7 @@ class Trainer():
             norm_type="loss+",
             mtl=True,
             mtl_start=15,
+            mtl_method='MGDA_R',
     ):
 
         # exclude motion discriminator
@@ -101,6 +105,7 @@ class Trainer():
         self.norm_type = norm_type
         self.mtl = mtl
         self.mtl_start = mtl_start
+        self.mtl_method = mtl_method
 
         self.dis_motion_update_steps = dis_motion_update_steps
 
@@ -191,18 +196,6 @@ class Trainer():
             timer['data'] = time.time() - start
             start = time.time()
 
-            preds, scores = self.generator(inp, is_train=True)
-
-            timer['forward'] = time.time() - start
-            start = time.time()
-
-            gen_loss, loss_dict = self.criterion(
-                generator_outputs=preds,
-                data_2d=target_2d,
-                data_3d=target_3d,
-                scores=scores
-            )
-
             # exclude motion discriminator
             # gen_loss, motion_dis_loss, loss_dict = self.criterion(
             #     generator_outputs=preds,
@@ -215,42 +208,136 @@ class Trainer():
             # )
             # =======>
 
-            timer['loss'] = time.time() - start
-            start = time.time()
-
             # <======= Backprop generator and discriminator
-            if self.mtl and (self.epoch % 2 == 1):# (self.epoch >= self.mtl_start):
-                self.generator.tree.zero_grad()
-                for name, loss in loss_dict.items():
+            if self.mtl: # and (self.epoch % 2 == 1):# (self.epoch >= self.mtl_start):
+                if self.mtl_method == 'MGDA_UB':
                     self.gen_optimizer.zero_grad()
-                    loss.backward(retain_graph=True)
+                    # First compute representations (z)
+                    # images_volatile = Variable(inp.data, volatile=True)
+                    preds, scores = self.generator(inp, is_train=True)
+                    # print(len(preds))
+                    # print(preds[0].keys())
+                    # print(preds[0]['scores'] == scores)
+                    # print(scores)
 
-                    with torch.no_grad():
-                        self.generator.tree.get_gradient(name)
+                    preds_idx = []
+                    preds_rep = [{}]
+                    for key in preds[0].keys():
+                        preds_idx.append(key)
+                        preds_rep[0][key] = Variable(preds[0][key].data.clone(), requires_grad=True)
 
-                    if self.update_grad:
-                        del loss
+                    timer['forward'] = time.time() - start
+                    start = time.time()
 
-                self.gen_optimizer.zero_grad()
+                    gen_loss, loss_dict = self.criterion(
+                        generator_outputs=preds_rep,
+                        data_2d=target_2d,
+                        data_3d=target_3d,
+                        scores=preds_rep[0]["scores"]
+                    )
 
-                with torch.no_grad():
-                    self.generator.tree.run_solver(loss_dict, self.norm_type, self.update_grad)
+                    # gen_loss.backward(retain_graph=True)
 
-                if not self.update_grad:
-                    m = len(loss_dict)
-                    self.gen_optimizer.zero_grad()
+                    timer['loss'] = time.time() - start
+                    start = time.time()
+
+                    grads = {}
+                    names = []
+                    for name, loss in loss_dict.items():
+                        names.append(name)
+                        # self.gen_optimizer.zero_grad()
+                        loss.backward(retain_graph=True)
+
+                        grads[name] = []
+                        for key in preds_idx:
+                            # print(preds_rep[0][key].grad)
+                            # print()
+                            if preds_rep[0][key].grad is None:
+                                preds_rep[0][key].grad = torch.zeros_like(preds_rep[0][key])
+                            grads[name].append(preds_rep[0][key].grad.clone())
+                            preds_rep[0][key].grad.zero_()
+
+                    gn = gradient_normalizers(grads, loss_dict, self.norm_type)
+
+                    for t in names:
+                        for gr_i in range(len(grads[t])):
+                            grads[t][gr_i] = grads[t][gr_i] / gn[t]
+
+                    sol, _ = MinNormSolver.find_min_norm_element([grads[t] for t in names])
+
                     loss = torch.zeros_like(gen_loss)
-                    for name, alpha in self.generator.tree.alphas:
-                        loss += loss_dict[name] * alpha  # * m
+                    for idx, name in enumerate(names):
+                        loss += loss_dict[name] * sol[idx]  # * m
+
+                    self.gen_optimizer.zero_grad()
                     loss.backward()
 
-                self.gen_optimizer.step()
+                elif self.mtl_method == "MGDA_R":
+
+                    preds, scores = self.generator(inp, is_train=True)
+
+                    timer['forward'] = time.time() - start
+                    start = time.time()
+
+                    gen_loss, loss_dict = self.criterion(
+                        generator_outputs=preds,
+                        data_2d=target_2d,
+                        data_3d=target_3d,
+                        scores=scores
+                    )
+
+                    timer['loss'] = time.time() - start
+                    start = time.time()
+
+                    self.generator.tree.zero_grad()
+
+                    for name, loss in loss_dict.items():
+                        self.gen_optimizer.zero_grad()
+                        loss.backward(retain_graph=True)
+
+                        with torch.no_grad():
+                            self.generator.tree.get_gradient(name)
+
+                        if self.update_grad:
+                            del loss
+
+                    self.gen_optimizer.zero_grad()
+
+                    with torch.no_grad():
+                        self.generator.tree.run_solver(loss_dict, self.norm_type, self.update_grad)
+
+                    if not self.update_grad:
+                        m = len(loss_dict)
+                        self.gen_optimizer.zero_grad()
+                        loss = torch.zeros_like(gen_loss)
+
+                        for name, alpha in self.generator.tree.alphas:
+                            loss += loss_dict[name] * alpha  # * m
+                        loss.backward()
+
+                else:
+                    raise
 
             else:
-                # print("XXXXXXXXXXXXXXXXXXXXXXXXXX\n")
+                preds, scores = self.generator(inp, is_train=True)
+
+                timer['forward'] = time.time() - start
+                start = time.time()
+
+                gen_loss, loss_dict = self.criterion(
+                    generator_outputs=preds,
+                    data_2d=target_2d,
+                    data_3d=target_3d,
+                    scores=scores
+                )
+
+                timer['loss'] = time.time() - start
+                start = time.time()
+
                 self.gen_optimizer.zero_grad()
                 gen_loss.backward()
-                self.gen_optimizer.step()
+
+            self.gen_optimizer.step()
 
             # exclude motion discriminator
             # if self.train_global_step % self.dis_motion_update_steps == 0:

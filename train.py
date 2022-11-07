@@ -131,6 +131,7 @@ def main(cfg):
         update_grad=cfg.UPDATE_GRAD,
         norm_type=cfg.NORM_TYPE,
         mtl=cfg.MTL,
+        mtl_start=cfg.MTL_START,
     ).fit()
 
 

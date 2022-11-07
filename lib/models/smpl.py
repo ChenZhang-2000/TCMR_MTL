@@ -5,7 +5,7 @@ import torch
 import numpy as np
 import os.path as osp
 from smplx import SMPL as _SMPL
-from smplx.body_models import SMPLOutput
+from smplx.body_models import ModelOutput as SMPLOutput
 from smplx.lbs import vertices2joints
 
 from lib.core.config import BASE_DATA_DIR

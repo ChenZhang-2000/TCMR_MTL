@@ -60,6 +60,7 @@ class Trainer():
             update_grad=True,
             norm_type="loss+",
             mtl=True,
+            mtl_start=15,
     ):
 
         # exclude motion discriminator
@@ -99,6 +100,7 @@ class Trainer():
         self.update_grad = update_grad
         self.norm_type = norm_type
         self.mtl = mtl
+        self.mtl_start = mtl_start
 
         self.dis_motion_update_steps = dis_motion_update_steps
 
@@ -217,7 +219,7 @@ class Trainer():
             start = time.time()
 
             # <======= Backprop generator and discriminator
-            if self.mtl and (self.epoch >= 10):
+            if self.mtl and (self.epoch % 2 == 1):# (self.epoch >= self.mtl_start):
                 self.generator.tree.zero_grad()
                 for name, loss in loss_dict.items():
                     self.gen_optimizer.zero_grad()

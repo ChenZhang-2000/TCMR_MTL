@@ -5,6 +5,10 @@ import numpy as np
 import torch
 
 
+def maximum(x, y):
+    return (x >= y) * x + (x < y) * y
+
+
 class MinNormSolver:
     MAX_ITER = 250
     STOP_CRIT = 1e-5
@@ -121,7 +125,7 @@ class MinNormSolver:
             if tmax > sorted_y[i+1]:
                 tmax_f = tmax
                 break
-        return torch.maximum(y - tmax_f, torch.zeros_like(y))
+        return maximum(y - tmax_f, torch.zeros_like(y))
 
     @staticmethod
     def _next_point(cur_val, grad, n):

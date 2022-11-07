@@ -37,6 +37,11 @@ BASE_DATA_DIR = global_config["BASE_DATA_DIR"]
 # Configuration variables
 cfg = CN()
 
+cfg.UPDATE_GRAD = False
+cfg.NORM_TYPE = "loss+"
+cfg.MTL = True
+cfg.MTL_START = 15
+
 cfg.TITLE = 'default'
 cfg.OUTPUT_DIR = 'results'
 cfg.EXP_NAME = 'default'
@@ -93,10 +98,6 @@ cfg.TRAIN.MOT_DISCR.ATT.DROPOUT = 0.1
 cfg.DATASET = CN()
 cfg.DATASET.SEQLEN = 20
 cfg.DATASET.OVERLAP = 0.5
-
-cfg.UPDATE_GRAD = False
-cfg.NORM_TYPE = "loss+"
-cfg.MTL = True
 
 cfg.LOSS = CN()
 cfg.LOSS.KP_2D_W = 60.

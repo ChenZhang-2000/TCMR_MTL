@@ -251,13 +251,13 @@ def gradient_normalizers(grads, losses, normalization_type):
     gn = {}
     if normalization_type == 'l2':
         for t in grads:
-            gn[t] = torch.sqrt(reduce(torch.add, [(gr**2).sum() for gr in grads[t]]))
+            gn[t] = torch.sqrt(torch.sum(torch.tensor([torch.norm(gr)**2 for gr in grads[t]])))
     elif normalization_type == 'loss':
         for t in grads:
             gn[t] = losses[t]
     elif normalization_type == 'loss+':
         for t in grads:
-            gn[t] = losses[t] * torch.sqrt(reduce(torch.add, [(gr**2).sum() for gr in grads[t]]))
+            gn[t] = losses[t] * torch.sqrt(torch.sum(torch.tensor([torch.norm(gr)**2 for gr in grads[t]])))
     elif normalization_type == 'none':
         for t in grads:
             gn[t] = 1.0

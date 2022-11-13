@@ -209,7 +209,7 @@ class Trainer():
             # =======>
 
             # <======= Backprop generator and discriminator
-            if self.mtl: # and (self.epoch % 2 == 1):# (self.epoch >= self.mtl_start):
+            if self.mtl: # and (i % 2 == 1):# (self.epoch >= self.mtl_start):
                 if self.mtl_method == 'MGDA_UB':
                     self.gen_optimizer.zero_grad()
                     # First compute representations (z)
@@ -264,6 +264,15 @@ class Trainer():
                             grads[t][gr_i] = grads[t][gr_i] / gn[t]
 
                     sol, _ = MinNormSolver.find_min_norm_element([grads[t] for t in names])
+
+                    preds, scores = self.generator(inp, is_train=True)
+
+                    gen_loss, loss_dict = self.criterion(
+                        generator_outputs=preds,
+                        data_2d=target_2d,
+                        data_3d=target_3d,
+                        scores=scores
+                    )
 
                     loss = torch.zeros_like(gen_loss)
                     for idx, name in enumerate(names):

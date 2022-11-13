@@ -38,7 +38,7 @@ BASE_DATA_DIR = global_config["BASE_DATA_DIR"]
 cfg = CN()
 
 cfg.UPDATE_GRAD = False
-cfg.NORM_TYPE = "loss+"
+cfg.NORM_TYPE = "loss"
 cfg.MTL = True
 cfg.MTL_START = 15
 cfg.MTL_METHOD = "MGDA_UB"
